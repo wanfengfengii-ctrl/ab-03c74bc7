@@ -1,0 +1,35 @@
+# 金属文物脱盐换液控制台
+#
+# 服务：
+#   web     —— 纯前端静态站点（nginx），提供 /health.html 健康检查
+#   verify  —— 一次性服务：运行单元测试、类型检查、生产构建、业务模块冒烟，
+#              完成后自行退出，并以退出码报告结果
+#
+# 宿主机端口可通过环境变量配置，例如：
+#   WEB_PORT=8080 docker compose up -d --build web
+#   docker compose run --build --rm verify ; echo "verify exit: $?"
+
+services:
+  web:
+    build:
+      context: .
+    image: desalination-console:latest
+    ports:
+      # 宿主机端口可配置：默认 8080，可用 WEB_PORT 覆盖
+      - "${WEB_PORT:-8080}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/health.html"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+  verify:
+    build:
+      context: .
+      target: build
+    image: desalination-console:verify
+    command: ["npm", "run", "verify"]
+    # 一次性服务：测试 + 构建 + 冒烟完成后自行退出，退出码即结果
+    restart: "no"
